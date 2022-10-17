@@ -1,6 +1,6 @@
 # SigniaLib
 
-[![PyPI](https://img.shields.io/pypi/v/nilspodlib)](https://pypi.org/project/signialib/)
+[![PyPI](https://img.shields.io/pypi/v/signialib)](https://pypi.org/project/signialib/)
 ![PyPI - Downloads](https://img.shields.io/pypi/dm/signialib)
 
 A python package to parse logged Matlab files of the Format Signia.

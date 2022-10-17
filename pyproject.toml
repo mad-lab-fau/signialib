@@ -1,0 +1,85 @@
+[tool.poetry]
+name = "signialib"
+version = "1.0.0"
+description = "Data handling of the IMUs integrated into Signia hearing aids"
+authors = ["Ann-Kristin Seifer <ann-kristin.seifer@fau.de>", 
+        "Arne Küderle <arne.kuederle@fau.de>",
+        "Nils Roth <nils.roth@fau.de>"]
+
+[tool.poetry.dependencies]
+python = ">=3.8,<3.10"
+pandas = "^1"
+scipy = ">=1.6.1,<2.0.0"
+typing_extensions = ">=4.1.1"
+numpy = ">=1"
+numba =  [
+    {version = "^0", python = "<3.9"},
+    {version = "^0.55", python = "^3.10"},
+    {version = "^0.53", python = ">=3.9,<3.10"},
+    {version = ">=0.55.2,<1.0.0", markers = "sys_platform == 'darwin' and platform_machine == 'arm64'"}
+]
+joblib = "^1.0.0"
+nilspodlib = "^3.2.2"
+
+[tool.poetry.dev-dependencies]
+pytest = "^6.2.1"
+pytest-cov = "^2.8.1"
+prospector = "^1.7.7"
+black = "^22.3.0"
+isort = "^5.10.1"
+numpydoc = "^1.4.0"
+sphinx-gallery = "^0.10.1"
+sphinx_issues = "^1.2.0"
+pydata-sphinx-theme = "^0.9.0"
+recommonmark = "^0.6.0"
+coverage = "^6.3.2"
+memory_profiler = "^0.57.0"
+toml = "^0.10.1"
+mypy = "^0.790"
+pytest-xdist = "^2.2.0"
+Sphinx = "^5.1.1"
+poethepoet = "^0.10.0"
+
+[tool.black]
+line-length = 120
+target-version = ['py37']
+exclude = '''
+(
+  /(
+      \.eggs         # exclude a few common directories in the
+    | \.git          # root of the project
+    | \.hg
+    | \.mypy_cache
+    | \.tox
+    | \.venv
+    | _build
+    | docs
+    | build
+    | dist
+    | \.virtual_documents
+  )/
+)
+'''
+
+[tool.isort]
+profile = "black"
+multi_line_output = 3
+line_length = 120
+skip_gitignore = true
+
+[tool.poe.tasks]
+_format_black = "black ."
+_format_isort = "isort ."
+format = ["_format_black", "_format_isort"]
+lint = { cmd = "prospector", help = "Lint all files with Prospector." }
+_check_black = "black . --check"
+_check_isort = "isort . --check"
+check = { sequence = ["_check_black", "_check_isort", "lint"], help = "Check all potential format and linting issues.", ignore_fail = false }
+test = { cmd = "pytest --cov=tpcp --cov-report=term-missing --cov-report=xml", help = "Run Pytest with coverage." }
+docs = { "script" = "_tasks:task_docs()",  help = "Build the html docs using Sphinx." }
+bump_version = { "script" = "_tasks:task_update_version()" }
+
+
+[build-system]
+requires = ["poetry_core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

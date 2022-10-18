@@ -13,7 +13,9 @@ from pathlib import Path
 from .dataset import Dataset  # noqa: F401
 from .session import Session  # noqa: F401
 
-__all__ = ["Dataset", "Session"]
+SIGNIA_CAL_PATH = Path(__file__).parent / "calibrations"
+
+__all__ = ["Dataset", "Session", "SIGNIA_CAL_PATH"]
 __version__ = "1.0.0"
 
-SIGNIA_CAL_PATH = Path(__file__).parent / "calibrations"
+

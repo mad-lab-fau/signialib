@@ -183,7 +183,7 @@ class Header(_HeaderFields):
 
         header_dict["sampling_rate_hz"] = np.float64(meta_info["fs"])
 
-        header_dict["acc_range_g"] = float(8)
+        header_dict["acc_range_g"] = float(2)
 
         header_dict["gyro_range_dps"] = float(1000)
 

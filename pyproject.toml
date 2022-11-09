@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "signialib"
-version = "1.0.0"
+version = "1.0.1"
 description = "Data handling of the IMUs integrated into Signia hearing aids"
 authors = ["Ann-Kristin Seifer <ann-kristin.seifer@fau.de>", 
         "Arne Küderle <arne.kuederle@fau.de>",
@@ -14,8 +14,8 @@ typing_extensions = ">=4.1.1"
 numpy = ">=1"
 numba =  [
     {version = "^0", python = "<3.9"},
-    {version = "^0.55", python = "^3.10"},
-    {version = "^0.53", python = ">=3.9,<3.10"},
+    {version = ">=0.55,<1.0.0", python = "^3.10"},
+    {version = ">=0.53,<1.0.0", python = ">=3.9,<3.10"},
     {version = ">=0.55.2,<1.0.0", markers = "sys_platform == 'darwin' and platform_machine == 'arm64'"}
 ]
 joblib = "^1.0.0"
@@ -75,10 +75,13 @@ lint = { cmd = "prospector", help = "Lint all files with Prospector." }
 _check_black = "black . --check"
 _check_isort = "isort . --check"
 check = { sequence = ["_check_black", "_check_isort", "lint"], help = "Check all potential format and linting issues.", ignore_fail = false }
-test = { cmd = "pytest --cov=tpcp --cov-report=term-missing --cov-report=xml", help = "Run Pytest with coverage." }
+test = { cmd = "pytest --cov=signialib --cov-report=term-missing --cov-report=xml", help = "Run Pytest with coverage." }
 docs = { "script" = "_tasks:task_docs()",  help = "Build the html docs using Sphinx." }
 bump_version = { "script" = "_tasks:task_update_version()" }
 
+
+[tool.pyright]
+pythonVersion = "3.8"
 
 [build-system]
 requires = ["poetry_core>=1.0.0"]

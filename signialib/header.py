@@ -54,7 +54,7 @@ class _HeaderFields:
 
     @property
     def _all_header_fields(self) -> List[str]:
-        """ """
+        """ """  # pydocstyle: noqa
         additional_fields = [
             "duration_s",
             "utc_datetime_start",
@@ -240,7 +240,7 @@ class _ProxyHeader(_HeaderFields):
         return itertools.chain(super().__dir__(), self._headers[0].__dir__())
 
     def _ipython_display_(self):
-        """ """
+        """ """  # noqa: D419
         import pandas as pd  # noqa: import-outside-toplevel
         from IPython import display  # noqa: import-outside-toplevel
 

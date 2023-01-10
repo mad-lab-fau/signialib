@@ -12,7 +12,6 @@ T = TypeVar("T")
 
 if TYPE_CHECKING:
     import pandas as pd  # noqa: F401
-
     from signialib.datastream import Datastream  # noqa: F401
 
 

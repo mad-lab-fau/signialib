@@ -229,7 +229,7 @@ class _ProxyHeader(_HeaderFields):
                 f"_ProxyHeader only allows access to attributes of the info objects. {name} is a callable method."
             )
 
-        return tuple([getattr(d, name) for d in self._headers])
+        return tuple(getattr(d, name) for d in self._headers)
 
     def __setattr__(self, name: str, value: Any) -> None:
         if name == "_headers":

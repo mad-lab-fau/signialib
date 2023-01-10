@@ -246,7 +246,7 @@ class Session(_MultiDataset):
             warnings.warn("Single dataset in session, alignment not necessary.")
 
         if skip_calibration is False:
-            s = s.calibrate_imu(self.find_closest_calibration(calib_path, warn_thres=datetime.timedelta(days=60)))
+            s = s.calibrate_imu(self.find_closest_calibration(calib_path, warn_thres=datetime.timedelta(days=60)))  # noqa
         if resample_rate_hz is not None:
             s = s.resample(resample_rate_hz)
         return s

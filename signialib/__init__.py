@@ -17,5 +17,3 @@ SIGNIA_CAL_PATH = Path(__file__).parent / "calibrations"
 
 __all__ = ["Dataset", "Session", "SIGNIA_CAL_PATH"]
 __version__ = "1.0.1"
-
-

@@ -63,9 +63,9 @@ def call_dataset(autogen_doc=True):  # noqa: D202
                 _cascading_access.__doc__ += "\n\n"
             else:
                 _cascading_access.__doc__ = (
-                    "Apply `Dataset.{0}` to all datasets of the session.\n\n"
-                    "See :py:meth:`nilspodlib.dataset.Dataset.{0}` for more details. "
-                    "The docstring of this method is included below:\n\n".format(method.__name__)
+                    f"Apply `Dataset.{method.__name__}` to all datasets of the session.\n\n"
+                    f"See :py:meth:`nilspodlib.dataset.Dataset.{0}` for more details. "
+                    f"The docstring of this method is included below:\n\n"
                 )
             _cascading_access.__doc__ += remove_docstring_indent(getattr(Dataset, method.__name__).__doc__)
         return _cascading_access

@@ -339,7 +339,7 @@ class Dataset:  # noqa: too-many-public-methods
             "counter": "n_samples",
             "time": "t",
         }
-        if index and index not in index_names.keys():
+        if index and index not in index_names:
             raise ValueError(f"Supplied value for index ({index}) is not allowed. Allowed values: {index_names.keys()}")
 
         index_name = index_names[index]
@@ -447,8 +447,8 @@ class Dataset:  # noqa: too-many-public-methods
         recursive: bool = True,
         filter_cal_type: Optional[str] = None,
         before_after: Optional[str] = None,
-        warn_thres: datetime.timedelta = datetime.timedelta(days=60),  # noqa E252
         ignore_file_not_found: Optional[bool] = False,
+        warn_thres: datetime.timedelta = datetime.timedelta(days=60),  # noqa E252
     ) -> Path:
         """Find the closest calibration info to the start of the measurement.
 

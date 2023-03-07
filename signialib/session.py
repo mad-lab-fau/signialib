@@ -75,7 +75,7 @@ class Session(_MultiDataset):
 
     @classmethod
     def from_file_paths(cls: Type[T], paths: Iterable[path_t]) -> T:
-        """Create a new session from a list of files pointing to valid .bin files.
+        """Create a new session from a list of files pointing to valid .mat files.
 
         Parameters
         ----------
@@ -247,7 +247,7 @@ class Session(_MultiDataset):
 
         if skip_calibration is False:
             s = s.calibrate_imu(
-                self.find_closest_calibration(calib_path, warn_thres=datetime.timedelta(days=60))
+                self.find_closest_calibration(calib_path, warn_thres=datetime.timedelta(days=60))  # noqa
             )  # noqa
         if resample_rate_hz is not None:
             s = s.resample(resample_rate_hz)

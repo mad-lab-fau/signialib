@@ -54,7 +54,6 @@ class _HeaderFields:
 
     @property
     def _all_header_fields(self) -> List[str]:
-        """ """  # pydocstyle: noqa
         additional_fields = [
             "duration_s",
             "utc_datetime_start",

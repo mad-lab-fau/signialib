@@ -97,7 +97,7 @@ class Dataset:  # noqa: too-many-public-methods
 
         .. note::
             Usually you shouldn't use this init directly.
-            Use the provided `from_bin_file` constructor to handle loading recorded Signia Hearing Aid Sessions.
+            Use the provided `from_mat_file` constructor to handle loading recorded Signia Hearing Aid Sessions.
 
         Parameters
         ----------
@@ -136,7 +136,7 @@ class Dataset:  # noqa: too-many-public-methods
         """
         path = Path(path)
         if path.suffix != ".mat":
-            ValueError(f'Invalid file type! Only ".bin" files are supported not {path}')
+            raise ValueError(f'Invalid file type! Only ".mat" files are supported not {path.suffix}')
 
         # todo
         sensor_data, counter, info = parse_mat(path)
@@ -494,7 +494,7 @@ class Dataset:  # noqa: too-many-public-methods
 
 
 def parse_mat(path: path_t) -> Tuple[Dict[str, np.ndarray], np.ndarray, Header]:
-    """Parse a binary NilsPod session file and read the header and the data.
+    """Parse a *.mat file and read the header and the data.
 
     Parameters
     ----------
@@ -522,7 +522,7 @@ def parse_mat(path: path_t) -> Tuple[Dict[str, np.ndarray], np.ndarray, Header]:
 
 
 def split_into_sensor_data(data: pd.DataFrame, session_header: Header) -> Dict[str, np.ndarray]:
-    """Split/Parse the binary data into the different sensors and the counter.
+    """Split/Parse the data into the different sensors and the counter.
 
     Parameters
     ----------

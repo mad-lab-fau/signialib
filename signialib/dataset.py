@@ -135,11 +135,26 @@ class Dataset:  # noqa: too-many-public-methods
 
         """
         path = Path(path)
-        if path.suffix != ".mat":
-            raise ValueError(f'Invalid file type! Only ".mat" files are supported not {path.suffix}')
 
-        # todo
         sensor_data, counter, info = parse_mat(path)
+        s = cls(sensor_data, counter, info)
+
+        s.path = path
+        return s
+
+    @classmethod
+    def from_txt_file(cls: Type[T], path: path_t) -> T:
+        """Create a new Dataset from a valid .mat file.
+
+        Parameters
+        ----------
+        path :
+            Path to the file
+
+        """
+        path = Path(path)
+
+        sensor_data, counter, info = parse_txt(path)
         s = cls(sensor_data, counter, info)
 
         s.path = path
@@ -513,12 +528,43 @@ def parse_mat(path: path_t) -> Tuple[Dict[str, np.ndarray], np.ndarray, Header]:
     """
     data = load_matlab(path, "deviceData")
 
-    session_header = Header.from_dict(data["metaInfo"])
+    session_header = Header.from_dict_mat(data["metaInfo"])
 
     data_stream = pd.DataFrame(data=data["data"])
     counter, sensor_data = split_into_sensor_data(data_stream, session_header)
 
     return sensor_data, counter, session_header
+
+
+def parse_txt(path: path_t) -> Tuple[Dict[str, np.ndarray], np.ndarray, Header]:
+    """Parse a *.txt file and read the header and the data.
+
+    Parameters
+    ----------
+    path :
+        Path to the file
+
+    Returns
+    -------
+    sensor_data :
+        The sensor data as dictionary
+    counter :
+        The counter values
+    session_header :
+        The session header
+
+    """
+    with open(path) as f:
+        lines = f.readlines()
+
+    session_header = Header.from_list_txt(lines[0:9], lines[-1][0:12])
+
+    data = pd.read_csv(path, skiprows=9, header=None, engine='python', sep=r' - |: |, |] |]', index_col=0).iloc[:, :-1]
+    # todo
+    counter, sensor_data = get_sensor_data(data, session_header)
+
+    #return sensor_data, counter, session_header
+    return None
 
 
 def split_into_sensor_data(data: pd.DataFrame, session_header: Header) -> Dict[str, np.ndarray]:
@@ -540,6 +586,51 @@ def split_into_sensor_data(data: pd.DataFrame, session_header: Header) -> Dict[s
         The sensor data as dictionary
 
     """
+    sensor_data = {}
+    n_samples = data.shape[0]
+
+    for sensor in session_header.enabled_sensors:
+        mappings = SENSOR_MAPPINGS[sensor]
+
+        data_stream = np.zeros((n_samples, 3))
+        for idx, axis in enumerate(mappings):
+            data_stream[:, idx] = data[axis].to_numpy()
+        sensor_data[sensor] = data_stream
+
+    counter = np.arange(0, n_samples, 1)
+
+    return counter, sensor_data
+
+
+def get_sensor_data(data: pd.DataFrame, session_header: Header) -> Dict[str, np.ndarray]:
+    """Split/Parse the data into the different sensors and the counter.
+
+    Parameters
+    ----------
+    data :
+        Data to be split
+    session_header:
+        The session header
+
+    Returns
+    -------
+    counter:
+        The counter values
+
+    sensor_data :
+        The sensor data as dictionary
+
+    """
+    columns = ['acc_x', 'acc_y', 'acc_z', 'gyro_x', 'gyro_y', 'gyro_z']
+    length = data.shape[0]*4
+
+    df = pd.DataFrame(columns=columns)
+    for i in range(4):
+        package = data[[3+14*i, 5+14*i, 7+14*i, 10+14*i, 12+14*i, 14+14*i]]
+        package.index = np.arange(i, length, 4)
+        package.columns = columns
+        df = pd.concat([df, package])
+
     sensor_data = {}
     n_samples = data.shape[0]
 

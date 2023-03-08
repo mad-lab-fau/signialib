@@ -74,6 +74,22 @@ class Session(_MultiDataset):
         self.datasets = tuple(datasets)
 
     @classmethod
+    def from_file_path(cls: Type[T], path: str) -> T:
+        """Create a new session from a list of files pointing to valid .mat files.
+
+        Parameters
+        ----------
+        path :
+            A path pointing to a .mat or .txt file.
+
+        """
+        if Path(path).suffix == ".txt":
+            ds = Dataset.from_txt_file(path)
+        elif Path(path).suffix == ".mat":
+            ds = Dataset.from_mat_file(path)
+        return cls([ds])
+
+    @classmethod
     def from_file_paths(cls: Type[T], paths: Iterable[path_t]) -> T:
         """Create a new session from a list of files pointing to valid .mat files.
 
@@ -82,7 +98,13 @@ class Session(_MultiDataset):
         paths :
             List of paths pointing to files to be included
 
+        Note
+        ----
+        Works only for .mat files. For .txt files please use Session.from_file_path().
+
         """
+        if str == type(paths):
+            raise ValueError('No iterable input.')
         ds = (Dataset.from_mat_file(p) for p in paths)
         return cls(ds)
 
@@ -102,9 +124,15 @@ class Session(_MultiDataset):
             regex that can be used to filter the files in the folder. This is passed to Pathlib.glob()
 
         """
+        if not Path(base_path).is_dir():
+            raise ValueError(f'The folder {base_path} does not exist.')
         ds = list(Path(base_path).glob(filter_pattern))
         if not ds:
-            raise ValueError(f'No files matching "{filter_pattern}" where found in {base_path}')
+            if list(Path(base_path).glob('*.txt')):
+                raise ValueError(f'No files matching "{filter_pattern}" where found in {base_path}. '
+                                 f'For "*.txt" files, please consider using the "Session.from_file_path" function.')
+            else:
+                raise ValueError(f'No files matching "{filter_pattern}" where found in {base_path}.')
         return cls.from_file_paths(ds)
 
     def get_dataset_by_id(self, sensor_id: str) -> Dataset:

@@ -5,6 +5,7 @@ Signialib/.idea
 __pycache__/
 *.py[cod]
 *$py.class
+testing.py
 
 # C extensions
 *.so

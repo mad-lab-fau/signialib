@@ -229,6 +229,7 @@ class Header(_HeaderFields):
             elif "Hearing Aid" in p:
                 if p.split("Number: ")[1] == "None":
                     continue
+                # todo: assert for now: only one sensor!!!
                 side = p.split(" ")[0]
                 header_dict["sensor_position"] = "ha_left" if side == "Left" else "ha_right"
                 header_dict["sensor_id"] = p.split("Number: ")[1][:-1]

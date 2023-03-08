@@ -209,7 +209,7 @@ class Session(_MultiDataset):
 
         for idx, sensor in enumerate(s.acc):
             s.acc[idx].data = resample(sensor.data, resample_len, axis=0)
-        for idx, sensor in enumerate(s.gyro):
+            s.datasets[idx].counter = np.arange(0, resample_len)
             s.gyro[idx].data = resample(sensor.data, resample_len, axis=0)
         s._synced = True
         return s

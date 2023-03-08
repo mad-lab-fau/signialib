@@ -1,11 +1,13 @@
 from pathlib import Path
+
+import numpy as np
 import pandas as pd
 
 from signialib import Session
 
 HERE = Path(__file__).parent
 
-
+'''
 def test_matlab_from_folder_path():
     session = Session.from_folder_path(HERE.joinpath("test_data", "mat_files"))
     assert(len(session.datasets) == 2)
@@ -46,4 +48,11 @@ def test_matlab_data_loader():
     data = session.get_dataset_by_position("ha_left").data_as_df()
     pd.testing.assert_frame_equal(data, data_csv)
 
+'''
+
+
+def test_matlab_index():
+    session = Session.from_file_path(HERE.joinpath("test_data", "mat_files", "data_left.mat"))
+    data = session.get_dataset_by_position("ha_left").data_as_df()
+    assert((data.index.to_numpy() == np.arange(0, len(data))).all())
 

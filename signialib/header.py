@@ -81,6 +81,16 @@ class _HeaderFields:
         return datetime.datetime.utcfromtimestamp(self.utc_stop).replace(tzinfo=pytz.utc)
 
     @property
+    def local_datetime_start(self) -> datetime.datetime:
+        """Start time in specified timezone."""
+        return datetime.datetime.fromtimestamp(self.utc_start)
+
+    @property
+    def local_datetime_stop(self) -> datetime.datetime:
+        """Start time in specified timezone."""
+        return datetime.datetime.fromtimestamp(self.utc_stop)
+
+    @property
     def has_position_info(self) -> bool:
         """If any information about the sensor position is provided."""
         return not self.sensor_position == "undefined"
@@ -210,39 +220,41 @@ class Header(_HeaderFields):
         return cls(**header_dict)
 
     @classmethod
-    def parse_header_txt(cls, meta_info: list, stop_time: str) -> Dict[str, Union[str, int, float, bool, tuple]]:
+    def parse_header_txt(  # noqa: MC0001
+        cls, meta_info: list, stop_time: str
+    ) -> Dict[str, Union[str, int, float, bool, tuple]]:
         """Extract all values from a dict header."""
-
         header_dict = {}
-        utc_start = datetime.datetime.strptime(meta_info[0][:-1], "%d-%m-%Y_%H-%M-%S")
+        utc_start = datetime.datetime.strptime(meta_info[0], "%d-%m-%Y_%H-%M-%S")
         utc_stop = datetime.datetime.strptime(meta_info[0][0:10] + "_" + stop_time, "%d-%m-%Y_%H:%M:%S.%f")
         header_dict["utc_start"] = int(utc_start.timestamp())
         header_dict["utc_stop"] = int(utc_stop.timestamp())
-
+        cnt_ha = 2
         for p in meta_info[1::]:
             if "Gyroscope DPS" in p:
-                header_dict["gyro_range_dps"] = int(p.split(': ')[1])
+                header_dict["gyro_range_dps"] = int(p.split(": ")[1])
             elif "Accelerometer G" in p:
-                header_dict["acc_range_g"] = int(p.split(': ')[1])
+                header_dict["acc_range_g"] = int(p.split(": ")[1])
             elif "Data rate:" in p:
-                header_dict["sampling_rate_hz"] = int(p.split(': ')[1])
+                header_dict["sampling_rate_hz"] = int(p.split(": ")[1])
             elif "Hearing Aid" in p:
                 if p.split("Number: ")[1] == "None":
+                    cnt_ha = 1
                     continue
-                # todo: assert for now: only one sensor!!!
                 side = p.split(" ")[0]
                 header_dict["sensor_position"] = "ha_left" if side == "Left" else "ha_right"
-                header_dict["sensor_id"] = p.split("Number: ")[1][:-1]
+                header_dict["sensor_id"] = p.split("Number: ")[1]
             elif "Available sensors:" in p:
                 avail = []
                 if "Gyrosc" in p:
-                    avail.append('gyro')
+                    avail.append("gyro")
                 if "Accelerometer" in p:
-                    avail.append('acc')
+                    avail.append("acc")
                 header_dict["enabled_sensors"] = tuple(avail)
             elif "Notes:" in p:
-                header_dict["custom_meta_data"] = p.split(': ')[1][:-1]
-
+                header_dict["custom_meta_data"] = p.split(":")[1][1::]
+        if cnt_ha == 2:
+            raise ValueError("Two hearing aids were used. Importer is currently only implementer for a single sensor.")
         header_dict["version_firmware"] = "D12"
 
         return header_dict

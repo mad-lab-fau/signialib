@@ -3,15 +3,17 @@
 import datetime
 import warnings
 from pathlib import Path
-from typing import TYPE_CHECKING, Iterable, Tuple, Type, TypeVar, Union
+from typing import TYPE_CHECKING, Iterable, Optional, Tuple, Type, TypeVar, Union
 
 import numpy as np
+import pandas as pd
 from nilspodlib.exceptions import SynchronisationError
 from nilspodlib.utils import inplace_or_copy, path_t
 from scipy.signal import resample
 
 from signialib._session_base import _MultiDataset
 from signialib.dataset import Dataset
+from signialib.exceptions import file_exists
 from signialib.header import _ProxyHeader
 
 if TYPE_CHECKING:
@@ -41,6 +43,8 @@ class Session(_MultiDataset):
         A tuple of the datasets belonging to the session
     info
         Get the metadata (Header) information for all datasets
+    labels :
+        Labels: Optional
 
     See Also
     --------
@@ -49,6 +53,8 @@ class Session(_MultiDataset):
     """
 
     datasets: Tuple[Dataset]
+    info: _ProxyHeader
+    labels: Optional[pd.Series]
     _synced = False
 
     @property
@@ -83,11 +89,15 @@ class Session(_MultiDataset):
             A path pointing to a .mat or .txt file.
 
         """
+        file_exists(path)
         if Path(path).suffix == ".txt":
-            ds = Dataset.from_txt_file(path)
+            ds, labels = Dataset.from_txt_file(path)
         elif Path(path).suffix == ".mat":
             ds = Dataset.from_mat_file(path)
-        return cls([ds])
+            labels = None
+        session = cls([ds])
+        session.labels = labels
+        return session
 
     @classmethod
     def from_file_paths(cls: Type[T], paths: Iterable[path_t]) -> T:
@@ -104,7 +114,7 @@ class Session(_MultiDataset):
 
         """
         if str == type(paths):
-            raise ValueError('No iterable input.')
+            raise ValueError("No iterable input.")
         ds = (Dataset.from_mat_file(p) for p in paths)
         return cls(ds)
 
@@ -125,14 +135,15 @@ class Session(_MultiDataset):
 
         """
         if not Path(base_path).is_dir():
-            raise ValueError(f'The folder {base_path} does not exist.')
+            raise ValueError(f"The folder {base_path} does not exist.")
         ds = list(Path(base_path).glob(filter_pattern))
         if not ds:
-            if list(Path(base_path).glob('*.txt')):
-                raise ValueError(f'No files matching "{filter_pattern}" where found in {base_path}. '
-                                 f'For "*.txt" files, please consider using the "Session.from_file_path" function.')
-            else:
-                raise ValueError(f'No files matching "{filter_pattern}" where found in {base_path}.')
+            if list(Path(base_path).glob("*.txt")):
+                raise ValueError(
+                    f'No files matching "{filter_pattern}" where found in {base_path}. '
+                    f'For "*.txt" files, please consider using the "Session.from_file_path" function.'
+                )
+            raise ValueError(f'No files matching "{filter_pattern}" where found in {base_path}.')
         return cls.from_file_paths(ds)
 
     def get_dataset_by_id(self, sensor_id: str) -> Dataset:

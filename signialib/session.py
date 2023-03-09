@@ -3,15 +3,17 @@
 import datetime
 import warnings
 from pathlib import Path
-from typing import TYPE_CHECKING, Iterable, Tuple, Type, TypeVar, Union
+from typing import TYPE_CHECKING, Iterable, Optional, Tuple, Type, TypeVar, Union
 
 import numpy as np
+import pandas as pd
 from nilspodlib.exceptions import SynchronisationError
 from nilspodlib.utils import inplace_or_copy, path_t
 from scipy.signal import resample
 
 from signialib._session_base import _MultiDataset
 from signialib.dataset import Dataset
+from signialib.exceptions import file_exists
 from signialib.header import _ProxyHeader
 
 if TYPE_CHECKING:
@@ -41,6 +43,8 @@ class Session(_MultiDataset):
         A tuple of the datasets belonging to the session
     info
         Get the metadata (Header) information for all datasets
+    labels :
+        Labels: Optional
 
     See Also
     --------
@@ -49,6 +53,8 @@ class Session(_MultiDataset):
     """
 
     datasets: Tuple[Dataset]
+    info: _ProxyHeader
+    labels: Optional[pd.Series]
     _synced = False
 
     @property
@@ -74,15 +80,41 @@ class Session(_MultiDataset):
         self.datasets = tuple(datasets)
 
     @classmethod
+    def from_file_path(cls: Type[T], path: str) -> T:
+        """Create a new session from a list of files pointing to valid .mat files.
+
+        Parameters
+        ----------
+        path :
+            A path pointing to a .mat or .txt file.
+
+        """
+        file_exists(path)
+        if Path(path).suffix == ".txt":
+            ds, labels = Dataset.from_txt_file(path)
+        elif Path(path).suffix == ".mat":
+            ds = Dataset.from_mat_file(path)
+            labels = None
+        session = cls([ds])
+        session.labels = labels
+        return session
+
+    @classmethod
     def from_file_paths(cls: Type[T], paths: Iterable[path_t]) -> T:
-        """Create a new session from a list of files pointing to valid .bin files.
+        """Create a new session from a list of files pointing to valid .mat files.
 
         Parameters
         ----------
         paths :
             List of paths pointing to files to be included
 
+        Note
+        ----
+        Works only for .mat files. For .txt files please use Session.from_file_path().
+
         """
+        if str == type(paths):
+            raise ValueError("No iterable input.")
         ds = (Dataset.from_mat_file(p) for p in paths)
         return cls(ds)
 
@@ -102,9 +134,16 @@ class Session(_MultiDataset):
             regex that can be used to filter the files in the folder. This is passed to Pathlib.glob()
 
         """
+        if not Path(base_path).is_dir():
+            raise ValueError(f"The folder {base_path} does not exist.")
         ds = list(Path(base_path).glob(filter_pattern))
         if not ds:
-            raise ValueError(f'No files matching "{filter_pattern}" where found in {base_path}')
+            if list(Path(base_path).glob("*.txt")):
+                raise ValueError(
+                    f'No files matching "{filter_pattern}" where found in {base_path}. '
+                    f'For "*.txt" files, please consider using the "Session.from_file_path" function.'
+                )
+            raise ValueError(f'No files matching "{filter_pattern}" where found in {base_path}.')
         return cls.from_file_paths(ds)
 
     def get_dataset_by_id(self, sensor_id: str) -> Dataset:
@@ -181,7 +220,7 @@ class Session(_MultiDataset):
 
         for idx, sensor in enumerate(s.acc):
             s.acc[idx].data = resample(sensor.data, resample_len, axis=0)
-        for idx, sensor in enumerate(s.gyro):
+            s.datasets[idx].counter = np.arange(0, resample_len)
             s.gyro[idx].data = resample(sensor.data, resample_len, axis=0)
         s._synced = True
         return s
@@ -247,7 +286,7 @@ class Session(_MultiDataset):
 
         if skip_calibration is False:
             s = s.calibrate_imu(
-                self.find_closest_calibration(calib_path, warn_thres=datetime.timedelta(days=60))
+                self.find_closest_calibration(calib_path, warn_thres=datetime.timedelta(days=60))  # noqa
             )  # noqa
         if resample_rate_hz is not None:
             s = s.resample(resample_rate_hz)

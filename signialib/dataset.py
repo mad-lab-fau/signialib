@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """Dataset represents a measurement session of a single sensor_type."""
 import datetime
+import warnings
 from pathlib import Path
 from typing import TYPE_CHECKING, Dict, Iterable, Optional, Sequence, Tuple, Type, TypeVar, Union
 
@@ -50,10 +51,8 @@ class Dataset:  # noqa: too-many-public-methods
         The continuous counter of the sensor.
     time_counter :
         Counter in seconds since first sample.
-    utc_counter :
-        Counter as utc timestamps.
-    utc_datetime_counter :
-        Counter as np.datetime64 in UTC timezone.
+    local_datetime_counter :
+        Counter as np.datetime64 in local timezone.
     active_sensor :
         The enabled sensors in the dataset.
     datastreams :
@@ -69,6 +68,7 @@ class Dataset:  # noqa: too-many-public-methods
     acc: Optional["Datastream"] = None
     gyro: Optional["Datastream"] = None
     counter: np.ndarray
+
     info: Header
 
     @property
@@ -92,12 +92,18 @@ class Dataset:  # noqa: too-many-public-methods
         """Counter in seconds since first sample."""
         return (self.counter - self.counter[0]) / self.info.sampling_rate_hz
 
-    def __init__(self, sensor_data: Dict[str, np.ndarray], counter: np.ndarray, info: Header):
+    def __init__(
+        self,
+        sensor_data: Dict[str, np.ndarray],
+        counter: np.ndarray,
+        info: Header,
+        local_datetime_counter: Optional[np.ndarray] = None,
+    ):
         """Get new Dataset instance.
 
         .. note::
             Usually you shouldn't use this init directly.
-            Use the provided `from_bin_file` constructor to handle loading recorded Signia Hearing Aid Sessions.
+            Use the provided `from_mat_file` constructor to handle loading recorded Signia Hearing Aid Sessions.
 
         Parameters
         ----------
@@ -108,10 +114,13 @@ class Dataset:  # noqa: too-many-public-methods
             The counter created by the sensor_type. Should have the same length as all datasets
         info :
             Header instance containing all Metainfo about the measurement.
+        local_datetime_counter :
+            Array containing local datetime for each sample in sensor_data
 
         """
         self.counter = counter
         self.info = info
+        self.local_datetime_counter = local_datetime_counter
 
         calibration_dict = {
             "acc": self._factory_calibrate_acc,
@@ -135,15 +144,28 @@ class Dataset:  # noqa: too-many-public-methods
 
         """
         path = Path(path)
-        if path.suffix != ".mat":
-            ValueError(f'Invalid file type! Only ".bin" files are supported not {path}')
 
-        # todo
         sensor_data, counter, info = parse_mat(path)
         s = cls(sensor_data, counter, info)
 
         s.path = path
         return s
+
+    @classmethod
+    def from_txt_file(cls: Type[T], path: path_t) -> T:
+        """Create a new Dataset from a valid .mat file.
+
+        Parameters
+        ----------
+        path :
+            Path to the file
+
+        """
+        sensor_data, counter, info, local_datetime_counter, labels = parse_txt(path)
+        s = cls(sensor_data, counter, info, local_datetime_counter)
+
+        s.path = path
+        return s, labels
 
     def _get_info(self):
         header_dict = {k: v for k, v in self.info.__dict__.items() if k in self.info._header_fields}
@@ -309,8 +331,6 @@ class Dataset:  # noqa: too-many-public-methods
             Specify which index should be used for the dataset. The options are:
             "counter": For the actual counter
             "time": For the time in seconds since the first sample
-            "utc": For the utc time stamp of each sample
-            "utc_datetime": for a pandas DateTime index in UTC time
             "local_datetime": for a pandas DateTime index in the timezone set for the session
             None: For a simple index (0...N)
         include_units :
@@ -334,12 +354,9 @@ class Dataset:  # noqa: too-many-public-methods
             If any other than the allowed `index` values are used.
 
         """
-        index_names = {
-            None: "n_samples",
-            "counter": "n_samples",
-            "time": "t",
-        }
-        if index and index not in index_names:
+        index_names = {None: "n_samples", "counter": "n_samples", "time": "t", "local_datetime": "datetime"}
+
+        if index not in index_names:
             raise ValueError(f"Supplied value for index ({index}) is not allowed. Allowed values: {index_names.keys()}")
 
         index_name = index_names[index]
@@ -494,7 +511,7 @@ class Dataset:  # noqa: too-many-public-methods
 
 
 def parse_mat(path: path_t) -> Tuple[Dict[str, np.ndarray], np.ndarray, Header]:
-    """Parse a binary NilsPod session file and read the header and the data.
+    """Parse a *.mat file and read the header and the data.
 
     Parameters
     ----------
@@ -513,16 +530,58 @@ def parse_mat(path: path_t) -> Tuple[Dict[str, np.ndarray], np.ndarray, Header]:
     """
     data = load_matlab(path, "deviceData")
 
-    session_header = Header.from_dict(data["metaInfo"])
+    session_header = Header.from_dict_mat(data["metaInfo"])
 
     data_stream = pd.DataFrame(data=data["data"])
-    counter, sensor_data = split_into_sensor_data(data_stream, session_header)
+    counter, sensor_data = split_into_sensor_data_mat(data_stream, session_header)
 
     return sensor_data, counter, session_header
 
 
-def split_into_sensor_data(data: pd.DataFrame, session_header: Header) -> Dict[str, np.ndarray]:
-    """Split/Parse the binary data into the different sensors and the counter.
+def parse_txt(path: path_t) -> Tuple[Dict[str, np.ndarray], np.ndarray, Header]:
+    """Parse a *.txt file and read the header and the data.
+
+    Parameters
+    ----------
+    path :
+        Path to the file
+
+    Returns
+    -------
+    sensor_data :
+        The sensor data as dictionary
+    counter :
+        The counter values
+    session_header :
+        The session header
+    labels:
+        Labels from app.
+
+    """
+    # read in data
+    with open(path, encoding="utf-8") as f:
+        lines = [line.strip() for line in f.readlines()]
+
+    data_raw = pd.read_csv(path, skiprows=9, header=None, engine="python", sep=r" - |: |, |] |]", index_col=0).iloc[
+        :, :-1
+    ]
+
+    session_header = Header.from_list_txt(lines[0:9], lines[-1][0:12])
+
+    data_matrix = data_raw.loc[data_raw[1] == "accelerometer"]
+    if data_matrix.isnull().values.any():
+        warnings.warn("Data contains NaN. Sample rate might have changed.")
+
+    counter, sensor_data, local_datetime_counter = get_sensor_data_txt(data_matrix, session_header)
+
+    # get labels
+    labels = data_raw.loc[data_raw[1] != "accelerometer"][1]
+
+    return sensor_data, counter, session_header, local_datetime_counter, labels
+
+
+def split_into_sensor_data_mat(data: pd.DataFrame, session_header: Header) -> Dict[str, np.ndarray]:
+    """Split/Parse the data into the different sensors and the counter.
 
     Parameters
     ----------
@@ -554,3 +613,78 @@ def split_into_sensor_data(data: pd.DataFrame, session_header: Header) -> Dict[s
     counter = np.arange(0, n_samples, 1)
 
     return counter, sensor_data
+
+
+def get_sensor_data_txt(data_matrix: pd.DataFrame, session_header: Header) -> Dict[str, np.ndarray]:
+    """Split/Parse the data into the different sensors and the counter.
+
+    Parameters
+    ----------
+    data_matrix :
+        Data to be split
+    session_header:
+        The session header
+
+    Returns
+    -------
+    counter:
+        The counter values
+
+    sensor_data :
+        The sensor data as dictionary
+
+    local_datetime_counter :
+        Local datetime for each sample in sensor_data.
+
+    """
+    no_packages = int(session_header.sampling_rate_hz / 25 * 2)
+
+    local_datetime_counter_unsorted = _create_local_datetime_counter_unsorted(
+        data_matrix.index.to_numpy(), session_header, no_packages
+    )
+
+    sensor_data = {}
+    for sensor in session_header.enabled_sensors:
+        data_single_sensor = _extract_data_array_unsorted(data_matrix, no_packages, sensor)
+        data_single_sensor.index = local_datetime_counter_unsorted
+        data_single_sensor.sort_index(inplace=True)
+        sensor_data[sensor] = data_single_sensor.to_numpy()
+
+    local_datetime_counter = data_single_sensor.index.to_numpy()
+    counter = np.arange(0, len(local_datetime_counter), 1)
+
+    return counter, sensor_data, local_datetime_counter
+
+
+def _extract_data_array_unsorted(data_matrix, no_packages, sensor):
+    df = pd.DataFrame()
+    sensor = "gyroscope" if sensor == "gyro" else "accelerometer"
+    columns_to_extract = data_matrix.columns[data_matrix.iloc[0] == sensor].to_numpy()
+    for i in range(no_packages):
+        col_idx = columns_to_extract[i]
+        package = data_matrix[[2 + col_idx, 4 + col_idx, 6 + col_idx]]
+        package.columns = ["x", "y", "z"]
+        df = pd.concat([df, package])
+    return df.reset_index(drop=True)
+
+
+def _create_local_datetime_counter_unsorted(
+    time_index: np.ndarray, session_header: Header, no_packages: int
+) -> np.ndarray:
+    """Expand Datetime Index to fit number of sample points.
+
+    For each package a fixed number of sample point are transmitted.
+    Datetime index is expanded to fit the number of sample points: len = len(time_index)*no_packages.
+    New datetimes are equally distibuted between two adjecent datetimes in time_index.
+
+    """
+    day = session_header.local_datetime_start.date().strftime("%d-%m-%Y")
+    base_counter = [datetime.datetime.strptime(day + "_" + idx, "%d-%m-%Y_%H:%M:%S.%f") for idx in time_index]
+    diff = np.append(
+        np.diff(base_counter) / no_packages, datetime.timedelta(microseconds=1 / session_header.sampling_rate_hz * 1e6)
+    )
+
+    datetime_counter = list(base_counter.copy())
+    for i in range(no_packages - 1):
+        datetime_counter = datetime_counter + list(base_counter + (i + 1) * diff)
+    return np.array(datetime_counter)

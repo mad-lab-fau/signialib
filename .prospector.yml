@@ -1,5 +1,6 @@
 strictness: veryhigh
 doc-warnings: true
+autodetect: false
 
 ignore-paths:
   - docs
@@ -9,8 +10,6 @@ ignore-paths:
   - _tasks.py
   - example_data
   - dist
-  - eargait/utils/helper_gaitmap.py
-  - matlab_run_gait_analysis_pipeline.py
 
 pycodestyle:
   options:

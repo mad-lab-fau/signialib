@@ -12,6 +12,7 @@ T = TypeVar("T")
 
 if TYPE_CHECKING:
     import pandas as pd  # noqa: F401
+
     from signialib.datastream import Datastream  # noqa: F401
 
 
@@ -103,6 +104,7 @@ class _MultiDataset:
         self,
         folder: path_t = None,
         recursive: bool = True,
+        warn_thres: Optional[int] = None,
         filter_cal_type: Optional[str] = None,
         before_after: Optional[str] = None,
         ignore_file_not_found: Optional[bool] = False,

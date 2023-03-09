@@ -559,8 +559,7 @@ def parse_txt(path: path_t) -> Tuple[Dict[str, np.ndarray], np.ndarray, Header]:
 
     """
     # read in data
-    with open(path, encoding="utf-8") as f:
-        lines = [line.strip() for line in f.readlines()]
+    lines = read_in_txt_file(path)
 
     data_raw = pd.read_csv(path, skiprows=9, header=None, engine="python", sep=r" - |: |, |] |]", index_col=0).iloc[
         :, :-1
@@ -578,6 +577,18 @@ def parse_txt(path: path_t) -> Tuple[Dict[str, np.ndarray], np.ndarray, Header]:
     labels = data_raw.loc[data_raw[1] != "accelerometer"][1]
 
     return sensor_data, counter, session_header, local_datetime_counter, labels
+
+
+def read_in_txt_file(path):
+    with open(path, encoding="utf-8") as f:
+        lines = [line.strip() for line in f.readlines()]
+    if "\ufeff" in lines[0]:
+        raise ValueError(
+            "Raw .txt format of old app version containing hexadezimal values for sensor data is used. "
+            "Importer for old format does not exists. "
+            "Please use the format, in which sensor data is converted to floats."
+        )
+    return lines
 
 
 def split_into_sensor_data_mat(data: pd.DataFrame, session_header: Header) -> Dict[str, np.ndarray]:

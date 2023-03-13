@@ -560,16 +560,12 @@ def parse_txt(path: path_t) -> Tuple[Dict[str, np.ndarray], np.ndarray, Header]:
     """
     # read in data
     lines = read_in_txt_file(path)
+    data_raw = read_in_txt_file_as_df(path)
+    imu_sensor = get_sensor_type(data_raw)
 
-    data_raw = pd.read_csv(path, skiprows=9, header=None, engine="python", sep=r" - |: |, |] |]", index_col=0).iloc[
-        :, :-1
-    ]
+    session_header = Header.from_list_txt(lines[0:9], lines[-1][0:12], imu_sensor)
 
-    session_header = Header.from_list_txt(lines[0:9], lines[-1][0:12])
-
-    data_matrix = data_raw.loc[data_raw[1] == "accelerometer"]
-    if data_matrix.isnull().values.any():
-        warnings.warn("Data contains NaN. Sample rate might have changed.")
+    data_matrix = get_data_matrix(data_raw)
 
     counter, sensor_data, local_datetime_counter = get_sensor_data_txt(data_matrix, session_header)
 
@@ -580,15 +576,46 @@ def parse_txt(path: path_t) -> Tuple[Dict[str, np.ndarray], np.ndarray, Header]:
 
 
 def read_in_txt_file(path):
-    with open(path, encoding="utf-8") as f:
+    with open(path, encoding="utf-8-sig") as f:
         lines = [line.strip() for line in f.readlines()]
-    if "\ufeff" in lines[0]:
+    if "DA-01-04-00" in lines[10]:
         raise ValueError(
             "Raw .txt format of old app version containing hexadezimal values for sensor data is used. "
             "Importer for old format does not exists. "
             "Please use the format, in which sensor data is converted to floats."
         )
     return lines
+
+
+def read_in_txt_file_as_df(path):
+    data_raw = pd.read_csv(path, skiprows=9, header=None, engine="python", sep=r" - |: |, |] |]", index_col=0).iloc[
+        :, :-1
+    ]
+    if data_raw.shape[0] == 0:
+        raise ValueError(
+            "Raw .txt format of old app version containing hexadezimal values for sensor data is used. "
+            "Importer for old format does not exists. "
+            "Please use the format, in which sensor data is converted to floats."
+        )
+    return data_raw
+
+
+def get_sensor_type(data_raw):
+    name = data_raw.iloc[0].iloc[0]
+    if name == "motion sensor":
+        return "BMA400"
+    if name == "accelerometer":
+        return "BMI270"
+    return None
+
+
+def get_data_matrix(data_raw):
+    data_matrix = data_raw.loc[(data_raw[1] == "motion sensor") | (data_raw[1] == "accelerometer")]
+    if data_matrix.shape[0] == 0:
+        raise ValueError("No data to extract for: ")
+    if data_matrix.isnull().values.any():
+        warnings.warn("Data contains NaN. Sample rate might have changed.")
+    return data_matrix
 
 
 def split_into_sensor_data_mat(data: pd.DataFrame, session_header: Header) -> Dict[str, np.ndarray]:
@@ -656,7 +683,9 @@ def get_sensor_data_txt(data_matrix: pd.DataFrame, session_header: Header) -> Di
 
     sensor_data = {}
     for sensor in session_header.enabled_sensors:
-        data_single_sensor = _extract_data_array_unsorted(data_matrix, no_packages, sensor)
+        data_single_sensor = _extract_data_array_unsorted(
+            data_matrix, no_packages, sensor, session_header.imu_sensor_type
+        )
         data_single_sensor.index = local_datetime_counter_unsorted
         data_single_sensor.sort_index(inplace=True)
         sensor_data[sensor] = data_single_sensor.to_numpy()
@@ -667,13 +696,30 @@ def get_sensor_data_txt(data_matrix: pd.DataFrame, session_header: Header) -> Di
     return counter, sensor_data, local_datetime_counter
 
 
-def _extract_data_array_unsorted(data_matrix, no_packages, sensor):
+def _extract_data_array_unsorted(data_matrix, no_packages, sensor, imu_sensor_type):
+    if imu_sensor_type == "BMA400":
+        return _extract_data_array_unsorted_bma400(data_matrix, no_packages)
+    if imu_sensor_type == "BMI270":
+        return _extract_data_array_unsorted_bmi270(data_matrix, no_packages, sensor)
+    raise ValueError("No extraction method defined for sensor: ", imu_sensor_type)
+
+
+def _extract_data_array_unsorted_bmi270(data_matrix, no_packages, sensor):
     df = pd.DataFrame()
     sensor = "gyroscope" if sensor == "gyro" else "accelerometer"
     columns_to_extract = data_matrix.columns[data_matrix.iloc[0] == sensor].to_numpy()
     for i in range(no_packages):
         col_idx = columns_to_extract[i]
         package = data_matrix[[2 + col_idx, 4 + col_idx, 6 + col_idx]]
+        package.columns = ["x", "y", "z"]
+        df = pd.concat([df, package])
+    return df.reset_index(drop=True)
+
+
+def _extract_data_array_unsorted_bma400(data_matrix, no_packages):
+    df = pd.DataFrame()
+    for i in range(no_packages):
+        package = data_matrix[[i * 6 + 3, i * 6 + 5, i * 6 + 7]]
         package.columns = ["x", "y", "z"]
         df = pd.concat([df, package])
     return df.reset_index(drop=True)

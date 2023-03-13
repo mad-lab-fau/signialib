@@ -37,6 +37,8 @@ class _HeaderFields:
 
     n_samples: int
 
+    imu_sensor_type: int
+
     _SENSOR_FLAGS = OrderedDict(
         [
             ("gyro", "gyroscope"),
@@ -118,6 +120,8 @@ class Header(_HeaderFields):
     enabled_sensors
         Tuple of sensors that were enabled during the recording.
         Uses typical shorthands.
+    imu_sensor_type
+        Fabric name of IMU sensor.
     sensor_position
         If a sensor position was specified.
         Can be a position from a list or custom bytes.
@@ -214,14 +218,14 @@ class Header(_HeaderFields):
         return header_dict
 
     @classmethod
-    def from_list_txt(cls, info_list: list, stop_time: str) -> "Header":
+    def from_list_txt(cls, info_list: list, stop_time: str, imu_sensor: str) -> "Header":
         """Create a new Header instance from an array of bytes."""
-        header_dict = cls.parse_header_txt(info_list, stop_time)
+        header_dict = cls.parse_header_txt(info_list, stop_time, imu_sensor)
         return cls(**header_dict)
 
     @classmethod
     def parse_header_txt(  # noqa: MC0001
-        cls, meta_info: list, stop_time: str
+        cls, meta_info: list, stop_time: str, imu_sensor: str
     ) -> Dict[str, Union[str, int, float, bool, tuple]]:
         """Extract all values from a dict header."""
         header_dict = {}
@@ -229,6 +233,7 @@ class Header(_HeaderFields):
         utc_stop = datetime.datetime.strptime(meta_info[0][0:10] + "_" + stop_time, "%d-%m-%Y_%H:%M:%S.%f")
         header_dict["utc_start"] = int(utc_start.timestamp())
         header_dict["utc_stop"] = int(utc_stop.timestamp())
+        header_dict["imu_sensor_type"] = imu_sensor
         cnt_ha = 2
         for p in meta_info[1::]:
             if "Gyroscope DPS" in p:

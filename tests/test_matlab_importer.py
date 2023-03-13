@@ -39,7 +39,7 @@ def test_matlab_header():
     assert session.info.version_firmware[0] == "DummyDeviceFirmwareXX1"
     assert session.info.utc_start[0] == 1622537266
     assert session.info.utc_stop[0] == 1622537496
-    assert len(session.info._all_header_fields) == 17
+    assert len(session.info._all_header_fields) == 18
 
 
 def test_matlab_data_loader():

@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "signialib"
-version = "2.1.0"
+version = "2.2.0"
 description = "Data handling of the IMUs integrated into Signia hearing aids"
 authors = ["Ann-Kristin Seifer <ann-kristin.seifer@fau.de>", 
         "Arne Küderle <arne.kuederle@fau.de>",

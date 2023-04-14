@@ -560,8 +560,8 @@ def parse_txt(path: path_t) -> Tuple[Dict[str, np.ndarray], np.ndarray, Header]:
     """
     # read in data
     lines = read_in_txt_file(path)
-    data_raw = read_in_txt_file_as_df(path)
-    imu_sensor = get_sensor_type(data_raw)
+    imu_sensor = get_sensor_type(path)
+    data_raw, start_label = read_in_txt_file_as_df(path, imu_sensor)
 
     session_header = Header.from_list_txt(lines[0:9], lines[-1][0:12], imu_sensor)
 
@@ -570,7 +570,10 @@ def parse_txt(path: path_t) -> Tuple[Dict[str, np.ndarray], np.ndarray, Header]:
     counter, sensor_data, local_datetime_counter = get_sensor_data_txt(data_matrix, session_header)
 
     # get labels
-    labels = data_raw.loc[data_raw[1] != "accelerometer"][1]
+    labels = data_raw.loc[(data_raw[1] != "accelerometer") & (data_raw[1] != "motion sensor")][1]
+
+    if start_label is not None:
+        labels = _add_first_label_to_label_list(labels, start_label)
 
     return sensor_data, counter, session_header, local_datetime_counter, labels
 
@@ -587,21 +590,39 @@ def read_in_txt_file(path):
     return lines
 
 
-def read_in_txt_file_as_df(path):
-    data_raw = pd.read_csv(path, skiprows=9, header=None, engine="python", sep=r" - |: |, |] |]", index_col=0).iloc[
-        :, :-1
-    ]
+def read_in_txt_file_as_df(path, imu_sensor):
+
+    if imu_sensor == "BMA400":
+        skiprow = 9
+    else:
+        skiprow = 10
+    try:
+        data_raw = pd.read_csv(
+            path, skiprows=skiprow, header=None, engine="python", sep=r" - |: |, |] |]", index_col=0
+        ).iloc[:, :-1]
+        label = None
+    except pd.errors.ParserError:
+        data_raw = pd.read_csv(
+            path, skiprows=skiprow + 1, header=None, engine="python", sep=r" - |: |, |] |]", index_col=0
+        ).iloc[:, :-1]
+        label = pd.read_csv(
+            path, skiprows=skiprow, nrows=1, engine="python", header=None, index_col=0, sep="- "
+        ).squeeze(axis=1)
+
     if data_raw.shape[0] == 0:
         raise ValueError(
             "Raw .txt format of old app version containing hexadezimal values for sensor data is used. "
             "Importer for old format does not exists. "
             "Please use the format, in which sensor data is converted to floats."
         )
-    return data_raw
+    return data_raw, label
 
 
-def get_sensor_type(data_raw):
-    name = data_raw.iloc[0].iloc[0]
+def get_sensor_type(path):
+    data_raw = pd.read_csv(path, skiprows=12, header=None, engine="python", sep=r" - |: |, |] |]", index_col=0).iloc[
+        :, :-1
+    ]
+    name = data_raw[1].value_counts().index[0]
     if name == "motion sensor":
         return "BMA400"
     if name == "accelerometer":
@@ -723,6 +744,14 @@ def _extract_data_array_unsorted_bma400(data_matrix, no_packages):
         package.columns = ["x", "y", "z"]
         df = pd.concat([df, package])
     return df.reset_index(drop=True)
+
+
+def _add_first_label_to_label_list(labels, start_label):
+    if labels.shape[0] == 0:
+        return_labels = start_label
+    else:
+        return_labels = pd.concat([start_label, labels])
+    return return_labels
 
 
 def _create_local_datetime_counter_unsorted(

@@ -5,14 +5,15 @@ import warnings
 from pathlib import Path
 from typing import TYPE_CHECKING, Dict, Iterable, Optional, Sequence, Tuple, Type, TypeVar, Union
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from nilspodlib.calibration_utils import find_closest_calibration_to_date, load_and_check_cal_info
-from nilspodlib.datastream import Datastream
 from nilspodlib.exceptions import RepeatedCalibrationError, datastream_does_not_exist_warning
 from nilspodlib.utils import inplace_or_copy, path_t
 
 from signialib.consts import GRAV, SENSOR_MAPPINGS
+from signialib.datastream import Datastream
 from signialib.header import Header
 from signialib.utils import load_matlab
 
@@ -508,6 +509,26 @@ class Dataset:  # noqa: too-many-public-methods
             warn_thres=warn_thres,
             ignore_file_not_found=ignore_file_not_found,
         )
+
+    def plot(self, index: str = None):
+        """Plot data.
+
+        Parameters
+        ----------
+        index: {None, "local_datetime"}
+            Defines x axis label ticks of plot. Default is None, i.e. samples.
+
+        """
+        fig = plt.figure()
+        if index == "local_datetime":
+            x_axis = self.local_datetime_counter
+        else:
+            x_axis = self.counter
+        for plot_id, stream in enumerate(self.datastreams):
+            ax = fig.add_subplot(len(self.active_sensors), 1, plot_id + 1)
+            stream[1].plot(ax=ax, x_axis=x_axis)
+            plot_id += 1
+        plt.show()
 
 
 def parse_mat(path: path_t) -> Tuple[Dict[str, np.ndarray], np.ndarray, Header]:

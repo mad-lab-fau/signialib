@@ -294,3 +294,14 @@ class Session(_MultiDataset):
         if resample_rate_hz is not None:
             s = s.resample(resample_rate_hz)
         return s
+
+    def plot(self, index: str = None):
+        """Plot data.
+
+        Parameters
+        ----------
+        index: {None, "local_datetime"}
+            Defines x axis label ticks of plot. Default is None, i.e. samples.
+
+        """
+        self.datasets = [d.plot(index=index) for d in self.datasets]

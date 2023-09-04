@@ -215,6 +215,11 @@ class Header(_HeaderFields):
 
         header_dict["sensor_id"] = meta_info["deviceSerialNumber"]
 
+        try:
+            header_dict["imu_sensor_type"] = meta_info["IMUSensorType"]
+        except KeyError:
+            header_dict["imu_sensor_type"] = None
+
         return header_dict
 
     @classmethod

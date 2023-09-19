@@ -8,14 +8,14 @@ from typing import TYPE_CHECKING, Dict, Iterable, Optional, Sequence, Tuple, Typ
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import scipy.io as sio
 from nilspodlib.calibration_utils import find_closest_calibration_to_date, load_and_check_cal_info
 from nilspodlib.exceptions import RepeatedCalibrationError, datastream_does_not_exist_warning
 from nilspodlib.utils import inplace_or_copy, path_t
 
-from signialib.consts import GRAV, SENSOR_MAPPINGS
+from signialib.consts import GRAV
 from signialib.datastream import Datastream
 from signialib.header import Header
-from signialib.utils import load_matlab
 
 if TYPE_CHECKING:
     from imucal import CalibrationInfo  # noqa: F401
@@ -532,7 +532,7 @@ class Dataset:  # noqa: too-many-public-methods
 
 
 def parse_mat(path: path_t) -> Tuple[Dict[str, np.ndarray], np.ndarray, Header]:
-    """Parse a *.mat file and read the header and the data.
+    """Parse a signia specific *.mat file and read the header and the data.
 
     Parameters
     ----------
@@ -549,12 +549,24 @@ def parse_mat(path: path_t) -> Tuple[Dict[str, np.ndarray], np.ndarray, Header]:
         The session header
 
     """
-    data = load_matlab(path, "deviceData")
+    data = sio.loadmat(path, squeeze_me=True, struct_as_record=True, mat_dtype=True)
+    data = data["deviceData"]
+    sensor_data_stream = data["data"].item()
+    meta_data = data["metaInfo"].item()
+    meta_data = {n: meta_data[n].item() for n in meta_data.dtype.names}
 
-    session_header = Header.from_dict_mat(data["metaInfo"])
+    column_names = sensor_data_stream.dtype.names
 
-    data_stream = pd.DataFrame(data=data["data"])
-    counter, sensor_data = split_into_sensor_data_mat(data_stream, session_header)
+    new_dtype = [(n, float) for n in column_names]
+    sensor_data_stream = pd.DataFrame(sensor_data_stream.astype(new_dtype))
+
+    session_header = Header.from_dict_mat(meta_data)
+
+    sensor_data = {
+        "acc": sensor_data_stream[["x", "y", "z"]].to_numpy(),
+        "gyro": sensor_data_stream[["hiGyrX", "hiGyrY", "hiGyrZ"]].to_numpy(),
+    }
+    counter = np.arange(0, len(sensor_data_stream), 1)
 
     return sensor_data, counter, session_header
 
@@ -658,41 +670,6 @@ def get_data_matrix(data_raw):
     if data_matrix.isnull().values.any():
         warnings.warn("Data contains NaN. Sample rate might have changed.")
     return data_matrix
-
-
-def split_into_sensor_data_mat(data: pd.DataFrame, session_header: Header) -> Dict[str, np.ndarray]:
-    """Split/Parse the data into the different sensors and the counter.
-
-    Parameters
-    ----------
-    data :
-        Data to be split
-    session_header:
-        The session header
-
-    Returns
-    -------
-    counter:
-        The counter values
-
-    sensor_data :
-        The sensor data as dictionary
-
-    """
-    sensor_data = {}
-    n_samples = data.shape[0]
-
-    for sensor in session_header.enabled_sensors:
-        mappings = SENSOR_MAPPINGS[sensor]
-
-        data_stream = np.zeros((n_samples, 3))
-        for idx, axis in enumerate(mappings):
-            data_stream[:, idx] = data[axis].to_numpy()
-        sensor_data[sensor] = data_stream
-
-    counter = np.arange(0, n_samples, 1)
-
-    return counter, sensor_data
 
 
 def get_sensor_data_txt(data_matrix: pd.DataFrame, session_header: Header) -> Dict[str, np.ndarray]:

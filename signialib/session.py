@@ -284,8 +284,6 @@ class Session(_MultiDataset):
 
         if len(s.datasets) == 2:
             s = s.align_to_syncregion()
-        else:
-            warnings.warn("Single dataset in session, alignment not necessary.")
 
         if skip_calibration is False:
             s = s.calibrate_imu(

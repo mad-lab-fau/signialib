@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "signialib"
-version = "2.6.0"
+version = "2.7.0"
 description = "Data handling of the IMUs integrated into Signia hearing aids"
 authors = ["Ann-Kristin Seifer <ann-kristin.seifer@fau.de>", 
         "Arne Küderle <arne.kuederle@fau.de>",
@@ -13,7 +13,7 @@ scipy = ">=1.6.1,<2.0.0"
 numpy = ">=1"
 joblib = "^1.0.0"
 nilspodlib = "^3.2.2"
-matplotlib = "^3.7.1"
+matplotlib = "^3.5.2"
 fau-colors = "^1.6.0"
 
 [tool.poetry.dev-dependencies]

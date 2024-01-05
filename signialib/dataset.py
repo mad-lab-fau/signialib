@@ -594,9 +594,17 @@ def parse_txt(path: path_t) -> Tuple[Dict[str, np.ndarray], np.ndarray, Header]:
     # read in data
     lines = read_in_txt_file(path)
     imu_sensor = get_sensor_type(path)
-    data_raw, start_label = read_in_txt_file_as_df(path, imu_sensor)
 
-    session_header = Header.from_list_txt(lines[0:9], lines[-1][0:12], imu_sensor)
+    if "Application Version" in lines[2]:
+        skip_row = 14
+    else:
+        skip_row = 10
+
+    if imu_sensor == "BMA400":
+        skip_row = skip_row - 1
+
+    data_raw, start_label = read_in_txt_file_as_df(path, skip_row)
+    session_header = Header.from_list_txt(lines[0 : skip_row - 1], lines[-1][0:12], imu_sensor)
 
     data_matrix = get_data_matrix(data_raw)
 
@@ -623,12 +631,7 @@ def read_in_txt_file(path):
     return lines
 
 
-def read_in_txt_file_as_df(path, imu_sensor):
-
-    if imu_sensor == "BMA400":
-        skiprow = 9
-    else:
-        skiprow = 10
+def read_in_txt_file_as_df(path, skiprow):
     try:
         data_raw = pd.read_csv(
             path, skiprows=skiprow, header=None, engine="python", sep=r" - |: |, |] |]", index_col=0

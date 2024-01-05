@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 """Session groups multiple Datasets from sensors recorded at the same time."""
 import datetime
-import warnings
 from pathlib import Path
 from typing import TYPE_CHECKING, Iterable, Optional, Tuple, Type, TypeVar, Union
 

@@ -36,10 +36,10 @@ def test_matlab_header():
     assert session.info.sensor_id[0] == "002"
     assert session.info.gyro_range_dps[0] == 1000.0
     assert session.info.has_position_info[0]
-    assert session.info.version_firmware[0] == "DummyDeviceFirmwareXX1"
+    assert session.info.firmware_version[0] == "DummyDeviceFirmwareXX1"
     assert session.info.utc_start[0] == 1622537266
     assert session.info.utc_stop[0] == 1622537496
-    assert len(session.info._all_header_fields) == 18
+    assert len(session.info._all_header_fields) == 22
 
 
 def test_matlab_data_loader():

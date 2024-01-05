@@ -2,4 +2,4 @@ from signialib import __version__
 
 
 def test_version():
-    assert __version__ == "2.6.0"
+    assert __version__ == "2.8.0"

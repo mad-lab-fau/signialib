@@ -29,9 +29,17 @@ class _HeaderFields:
     utc_start: int
     utc_stop: int
 
-    version_firmware: str
+    firmware_version: str
 
     sensor_id: str
+
+    app_version: str
+
+    ruleset_version: str
+
+    model_name: str
+
+    platform: str
 
     custom_meta_data: Tuple[float]
 
@@ -149,8 +157,16 @@ class Header(_HeaderFields):
         .. note:: No timezone is assumed and client software is instructed to set the internal sensor clock to utc time.
                   However, this can not be guaranteed.
 
-    version_firmware
+    firmware_version
         Version number of the firmware
+    platform
+        Platform of hearing aid
+    app_version
+        Version number of the recording app
+    model_name
+        Name of hearing aid model
+    ruleset_version
+        Version number of the ruleset
     custom_meta_data
         Custom meta data which was saved during saving.
     n_samples
@@ -211,7 +227,7 @@ class Header(_HeaderFields):
         header_dict["utc_stop"] = int(utc.timestamp())
         header_dict["utc_start"] = header_dict["utc_stop"] - int(meta_info["length"])
 
-        header_dict["version_firmware"] = meta_info["deviceFwVersion"]
+        header_dict["firmware_version"] = meta_info["deviceFwVersion"]
 
         header_dict["sensor_id"] = meta_info["deviceSerialNumber"]
 
@@ -219,6 +235,11 @@ class Header(_HeaderFields):
             header_dict["imu_sensor_type"] = meta_info["IMUSensorType"]
         except KeyError:
             header_dict["imu_sensor_type"] = None
+
+        header_dict["platform"] = meta_info["deviceFwVersion"][0:3]
+        header_dict["ruleset_version"] = None
+        header_dict["model_name"] = None
+        header_dict["app_version"] = "No App Used"
 
         return header_dict
 
@@ -239,7 +260,7 @@ class Header(_HeaderFields):
         header_dict["utc_start"] = int(utc_start.timestamp())
         header_dict["utc_stop"] = int(utc_stop.timestamp())
         header_dict["imu_sensor_type"] = imu_sensor
-        cnt_ha = 2
+
         for p in meta_info[1::]:
             if "Gyroscope DPS" in p:
                 header_dict["gyro_range_dps"] = int(p.split(": ")[1])
@@ -247,13 +268,6 @@ class Header(_HeaderFields):
                 header_dict["acc_range_g"] = int(p.split(": ")[1])
             elif "Data rate:" in p:
                 header_dict["sampling_rate_hz"] = int(p.split(": ")[1])
-            elif "Hearing Aid" in p:
-                if p.split("Number: ")[1] == "None":
-                    cnt_ha = 1
-                    continue
-                side = p.split(" ")[0]
-                header_dict["sensor_position"] = "ha_left" if side == "Left" else "ha_right"
-                header_dict["sensor_id"] = p.split("Number: ")[1]
             elif "Available sensors:" in p:
                 avail = []
                 if "Gyrosc" in p:
@@ -263,11 +277,67 @@ class Header(_HeaderFields):
                 header_dict["enabled_sensors"] = tuple(avail)
             elif "Notes:" in p:
                 header_dict["custom_meta_data"] = p.split(":")[1][1::]
-        if cnt_ha == 2:
-            raise ValueError("Two hearing aids were used. Importer is currently only implementer for a single sensor.")
-        header_dict["version_firmware"] = "D12"
 
+        if "Application Version" in meta_info[2]:
+            header_dict = add_header_infos_with_app_version(meta_info, header_dict)
+        else:
+            header_dict = add_header_infos_without_app_version(meta_info, header_dict)
+
+        header_dict["platform"] = "D12"
         return header_dict
+
+
+def add_header_infos_with_app_version(meta_info, header_dict):
+    for p in meta_info[1::]:
+        if "Application Version" in p:
+            header_dict["app_version"] = p.split(": ")[1]
+        elif "Serial Number" in p:
+            entry, side1 = _split_line(p)
+            header_dict["sensor_id"] = entry
+        elif "Firmware Version" in p:
+            entry, side2 = _split_line(p)
+            header_dict["firmware_version"] = entry
+        elif "RuleSet Version" in p:
+            entry, side3 = _split_line(p)
+            header_dict["ruleset_version"] = entry
+        elif "Model Name" in p:
+            entry, side4 = _split_line(p)
+            header_dict["model_name"] = entry
+    if not (side1 == side2 == side3 == side4):  # noqa
+        raise ValueError("Not consistent left and right configuration.")
+    header_dict["sensor_position"] = "ha_left" if side1 == "Left" else "ha_right"
+    return header_dict
+
+
+def _split_line(line):
+    r = line.split(": ")
+    if r[0][-4::] != "Left" or r[1][-5::] != "Right":
+        raise ValueError("Wrong format of lines for left and right configuration")
+    left = r[1].split(" Right")[0]
+    right = r[2]
+    if left == "None":
+        return right, "Right"
+    return left, "Left"
+
+
+def add_header_infos_without_app_version(meta_info, header_dict):
+    cnt_ha = 2
+    for p in meta_info[1::]:
+        if "Hearing Aid" in p:
+            if p.split("Number: ")[1] == "None":
+                cnt_ha = 1
+                continue
+            side = p.split(" ")[0]
+            header_dict["sensor_position"] = "ha_left" if side == "Left" else "ha_right"
+            header_dict["sensor_id"] = p.split("Number: ")[1]
+    header_dict["firmware_version"] = None
+    header_dict["platform"] = "D12"
+    header_dict["ruleset_version"] = None
+    header_dict["model_name"] = None
+    header_dict["app_version"] = "0.0.0"
+    if cnt_ha == 2:
+        raise ValueError("Two hearing aids were used. Importer is currently only implementer for a single sensor.")
+    return header_dict
 
 
 class _ProxyHeader(_HeaderFields):

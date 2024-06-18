@@ -16,4 +16,4 @@ from .session import Session  # noqa: F401
 SIGNIA_CAL_PATH = Path(__file__).parent / "calibrations"
 
 __all__ = ["Dataset", "Session", "SIGNIA_CAL_PATH"]
-__version__ = "2.8.0"
+__version__ = "2.9.0"

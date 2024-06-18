@@ -257,6 +257,7 @@ class Session(_MultiDataset):
         resample_rate_hz: int = None,
         inplace: bool = False,
         skip_calibration: bool = False,
+        warn_thres_days: int = 60,
     ) -> T:
         """Aligns calibrates and resamples all datasets in session.
 
@@ -270,6 +271,8 @@ class Session(_MultiDataset):
             If operation should be performed on the current Session object, or on a copy
         skip_calibration:
             Set to 'True' is no calibration files (by Ferraris) are given.
+        warn_thres_days:
+            Warning if calicration is older than this threshold in days.
 
         Returns
         -------
@@ -286,7 +289,7 @@ class Session(_MultiDataset):
 
         if skip_calibration is False:
             s = s.calibrate_imu(
-                self.find_closest_calibration(calib_path, warn_thres=datetime.timedelta(days=60))  # noqa
+                self.find_closest_calibration(calib_path, warn_thres=datetime.timedelta(days=warn_thres_days))  # noqa
             )  # noqa
         if resample_rate_hz is not None:
             s = s.resample(resample_rate_hz)

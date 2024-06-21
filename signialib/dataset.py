@@ -629,7 +629,7 @@ def parse_txt(path: path_t) -> Tuple[Dict[str, np.ndarray], np.ndarray, Header]:
 def read_in_txt_file(path):
     with open(path, encoding="utf-8-sig") as f:
         lines = [line.strip() for line in f.readlines()]
-    if "DA-01-04-00" in lines[10]:
+    if any("DA-01-04-00" in sub for sub in [lines[10],lines[9]]):
         raise ValueError(
             "Raw .txt format of old app version containing hexadezimal values for sensor data is used. "
             "Importer for old format does not exists. "

@@ -53,7 +53,8 @@ class Dataset:  # noqa: too-many-public-methods
     time_counter :
         Counter in seconds since first sample.
     local_datetime_counter :
-        Counter as np.datetime64 in local timezone. Only available if provided by recoding file, currently only txt files.
+        Counter as np.datetime64 in local timezone. Only available if provided by recoding file, currently only
+        txt files.
     active_sensor :
         The enabled sensors in the dataset.
     datastreams :
@@ -116,7 +117,8 @@ class Dataset:  # noqa: too-many-public-methods
         info :
             Header instance containing all Metainfo about the measurement.
         local_datetime_counter :
-            Counter as np.datetime64 in local timezone. Only available if provided by recoding file, currently only txt files.
+            Counter as np.datetime64 in local timezone. Only available if provided by recoding file, currently only
+            txt files.
 
         """
         self.counter = counter
@@ -519,7 +521,6 @@ class Dataset:  # noqa: too-many-public-methods
             Defines x axis label ticks of plot. Default is None, i.e. samples.
 
         """
-
         if index and index != "local_datetime":
             raise ValueError(f"Invalid value for index: {index}. Allowed values: None, 'local_datetime'")
         fig = plt.figure()
@@ -629,7 +630,7 @@ def parse_txt(path: path_t) -> Tuple[Dict[str, np.ndarray], np.ndarray, Header]:
 def read_in_txt_file(path):
     with open(path, encoding="utf-8-sig") as f:
         lines = [line.strip() for line in f.readlines()]
-    if any("DA-01-04-00" in sub for sub in [lines[10],lines[9]]):
+    if any("DA-01-04-00" in sub for sub in [lines[10], lines[9]]):
         raise ValueError(
             "Raw .txt format of old app version containing hexadezimal values for sensor data is used. "
             "Importer for old format does not exists. "

@@ -304,6 +304,5 @@ class Session(_MultiDataset):
             Defines x axis label ticks of plot. Default is None, i.e. samples.
 
         """
-
         self.datasets = [d.plot(index=index) for d in self.datasets]
         return self

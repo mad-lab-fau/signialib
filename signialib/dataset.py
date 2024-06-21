@@ -53,7 +53,7 @@ class Dataset:  # noqa: too-many-public-methods
     time_counter :
         Counter in seconds since first sample.
     local_datetime_counter :
-        Counter as np.datetime64 in local timezone.
+        Counter as np.datetime64 in local timezone. Only available if provided by recoding file, currently only txt files.
     active_sensor :
         The enabled sensors in the dataset.
     datastreams :
@@ -116,7 +116,7 @@ class Dataset:  # noqa: too-many-public-methods
         info :
             Header instance containing all Metainfo about the measurement.
         local_datetime_counter :
-            Array containing local datetime for each sample in sensor_data
+            Counter as np.datetime64 in local timezone. Only available if provided by recoding file, currently only txt files.
 
         """
         self.counter = counter
@@ -519,16 +519,23 @@ class Dataset:  # noqa: too-many-public-methods
             Defines x axis label ticks of plot. Default is None, i.e. samples.
 
         """
+
+        if index and index != "local_datetime":
+            raise ValueError(f"Invalid value for index: {index}. Allowed values: None, 'local_datetime'")
         fig = plt.figure()
-        if index == "local_datetime":
+        x_axis = self.counter
+
+        if index == "local_datetime" and self.local_datetime_counter is not None:
             x_axis = self.local_datetime_counter
         else:
-            x_axis = self.counter
+            warnings.warn("No local datetime counter available. Using sample counter instead.")
+
         for plot_id, stream in enumerate(self.datastreams):
             ax = fig.add_subplot(len(self.active_sensors), 1, plot_id + 1)
             stream[1].plot(ax=ax, x_axis=x_axis)
             plot_id += 1
         plt.show()
+        return self
 
 
 def parse_mat(path: path_t) -> Tuple[Dict[str, np.ndarray], np.ndarray, Header]:

@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "signialib"
-version = "2.10.0"
+version = "2.11.0"
 description = "Data handling of the IMUs integrated into Signia hearing aids"
 authors = ["Ann-Kristin Seifer <ann-kristin.seifer@fau.de>", 
         "Arne Küderle <arne.kuederle@fau.de>",
@@ -8,7 +8,7 @@ authors = ["Ann-Kristin Seifer <ann-kristin.seifer@fau.de>",
 
 [tool.poetry.dependencies]
 python = ">=3.8,<4.0"
-pandas = "^1"
+pandas = "^2"
 scipy = ">=1.6.1,<2.0.0"
 numpy = ">=1"
 joblib = "^1.0.0"
